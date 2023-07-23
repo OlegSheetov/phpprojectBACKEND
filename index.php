@@ -40,6 +40,10 @@ if($method === 'POST'){
                 $sql = new \sql\sqlclass; 
                 echo $sql->PickOneUser($_POST['login'], $_POST['name']);
             }
+            if($method === 'Login'){
+                $sql = new \sql\sqlclass; 
+                $sql->Login($_POST['login'] ,$_POST['name'], $_POST['password']); 
+            }
          }
      }
 ?>

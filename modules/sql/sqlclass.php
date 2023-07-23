@@ -53,7 +53,8 @@ class sqlclass {
         $state->bindValue(':CurrentUserLogin', $CurrentUserLogin , \PDO::PARAM_STR);
         $state->bindValue(':CurrentUserName', $CurrentUserName , \PDO::PARAM_STR);
         $state->execute();
-        return $state->fetchAll(\PDO::FETCH_ASSOC);
+        $result = $state->fetchAll(\PDO::FETCH_ASSOC); 
+        return $result[0];
     }
 
     /*
@@ -67,25 +68,36 @@ class sqlclass {
         $state->bindValue(':CurrentUserLogin', $CurrentUserLogin , \PDO::PARAM_STR);
         $state->bindValue(':CurrentUserName', $CurrentUserName , \PDO::PARAM_STR);
         $state->execute();
-        return $state->fetchAll(\PDO::FETCH_ASSOC);
+        $result = $state->fetchAll(\PDO::FETCH_ASSOC); 
+        return $result[0];
+    }
+    static function DecryptPassword(string $password) { 
+
     }
 
     function PickOneUser(string $CurrentUserLogin , string $CurrentUserName) { 
-        try{ 
             $user = self::PapersPlease($CurrentUserLogin , $CurrentUserName);
-            $userJSON = json_encode($user, JSON_UNESCAPED_UNICODE);
-            return $userJSON;
-        }catch (PDOException $e) {
-            echo $e->getMessage();
-        }
+            if(isset($user)){
+                try{ 
+                    $userJSON = json_encode($user, JSON_UNESCAPED_UNICODE);
+                    return $userJSON;
+                }catch (PDOException $e) {
+                    echo $e->getMessage();
+                }
+            }else { 
+                echo 'User not found';
+                http_response_code(404);
+            }
+
     }
 
     function InsertNewUser(string $name , string $login , string $password){
+        $Hashed_password = password_hash($password , PASSWORD_DEFAULT);
         try {
             $state = self::$connection->prepare("INSERT INTO `users`(`name`, `login`, `password`) VALUES (:name,:login,:password)");
             $state->bindValue(':name', $name , \PDO::PARAM_STR);
             $state->bindValue(':login', $login ,\PDO::PARAM_STR);
-            $state->bindValue(':password', $password ,\PDO::PARAM_STR);
+            $state->bindValue(':password', $Hashed_password ,\PDO::PARAM_STR);
             $state->execute();
         } catch (PDOException $e){ 
             echo $e->getMessage();
@@ -93,31 +105,35 @@ class sqlclass {
     }
 
     function UpdateUser(string $CurrentUserLogin , string $CurrentUserName, string $CheckCurrentPassword, string $NewName , string $NewPassword){
-             $UserArray = self::GetUserPassword($CurrentUserLogin, $CurrentUserName);
-             $user = $UserArray[0];
-            if($CheckCurrentPassword === $user['password']){ 
-                try{
-                    $state = self::$connection->prepare("UPDATE `users` SET name=:NewName, password=:NewPassword 
-                        WHERE login=:CurrentUserLogin && name=:CurrentUserName");
-                    $state->bindValue(':CurrentUserName', $CurrentUserName ,\PDO::PARAM_STR);
-                    $state->bindValue(':CurrentUserLogin', $CurrentUserLogin ,\PDO::PARAM_STR);
-                    $state->bindValue(':NewName', $NewName , \PDO::PARAM_STR);
-                    $state->bindValue(':NewPassword', $NewPassword ,\PDO::PARAM_STR);
-                    $state->execute();
-                } catch(PDOException $e) {
-                    echo $e->getMessage(); 
+             $user = self::GetUserPassword($CurrentUserLogin, $CurrentUserName);
+             $Hashed_NewPassword = password_hash($NewPassword , PASSWORD_DEFAULT);
+             if(isset($user)){
+                if(password_verify($CheckCurrentPassword , $user['password'])){ 
+                    try{
+                        $state = self::$connection->prepare("UPDATE `users` SET name=:NewName, password=:NewPassword 
+                            WHERE login=:CurrentUserLogin && name=:CurrentUserName");
+                        $state->bindValue(':CurrentUserName', $CurrentUserName ,\PDO::PARAM_STR);
+                        $state->bindValue(':CurrentUserLogin', $CurrentUserLogin ,\PDO::PARAM_STR);
+                        $state->bindValue(':NewName', $NewName , \PDO::PARAM_STR);
+                        $state->bindValue(':NewPassword', $Hashed_NewPassword ,\PDO::PARAM_STR);
+                        $state->execute();
+                    } catch(PDOException $e) {
+                        echo $e->getMessage(); 
+                    }
                 }
-            }
-            else {
-                echo 'Wrong password';
-            }
+                else {
+                    echo 'Wrong password';
+                }
+             }else { 
+                 echo 'User not found';
+                 http_response_code(404);
+             }
     }
 
 
     function DeleteUser( string $CurrentUserLogin , string $CurrentUserName  , $CheckCurrentPassword){
-             $UserArray = self::GetUserPassword($CurrentUserLogin, $CurrentUserName);
-             $user = $UserArray[0];
-        if ($CheckCurrentPassword === $user['password']){
+             $user = self::GetUserPassword($CurrentUserLogin, $CurrentUserName);
+        if (password_verify($CheckCurrentPassword , $user['password'])){
             try{
                 $state = self::$connection->prepare('DELETE from `users` WHERE  login=:CurrentUserLogin && name=:CurrentUserName');
                 $state->bindValue(':CurrentUserLogin', $CurrentUserLogin , \PDO::PARAM_STR);
@@ -131,6 +147,22 @@ class sqlclass {
             echo 'Wrong password';
         }
 
+    }
+
+    function Login(string $Login , string $Name ,  string $password){
+        $user = self::GetUserPassword($Login , $Name);
+        if(isset($user) && password_verify($password , $user['password'])){
+            $response = [
+                'response'=> true,
+                'password_hash'=> $user['password']
+            ];
+            echo json_encode($response , JSON_UNESCAPED_UNICODE ) ;
+        }else {
+            $response = [
+                'response' => false
+            ];
+            echo json_encode($response , JSON_UNESCAPED_UNICODE ) ;
+        }
     }
 }
 ?>
