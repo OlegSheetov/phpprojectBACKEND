@@ -6,6 +6,7 @@ header('Access-Control-Allow-Origin: localhost');
 header('Access-Control-Allow-Methods: GET,POST;');
 header('Access-Control-Heders:X-Requested-with');
 
+// А автолоадер вообще работает ? 
 function autoloader(string $classname){ 
     global $base_path;
     $path =str_replace('\\', '/' , $base_path . 'modules/' . $classname . '.php');
@@ -29,15 +30,15 @@ if($method === 'POST'){
             }
             if($method === 'UpdateUser'){ 
                 $sql = new \sql\sqlclass; 
-                $sql->UpdateUser( $_POST['login'] , $_POST['name'] , $_POST['new_name'] , $_POST['new_password'] );
+                $sql->UpdateUser( $_POST['login'] , $_POST['name'] , $_POST['CheckPassword'], $_POST['new_name']  , $_POST['new_password'] );
             }
             if($method === 'DeleteUser'){
                 $sql = new \sql\sqlclass; 
-                $sql->DeleteUser($_POST['login'], $_POST['name']);
+                $sql->DeleteUser($_POST['login'], $_POST['name'] , $_POST['CheckPassword']);
             }
             if($method === 'GetOneUser'){
                 $sql = new \sql\sqlclass; 
-                echo $sql->PickOneUser( $_POST['login'], $_POST['name']);
+                echo $sql->PickOneUser($_POST['login'], $_POST['name']);
             }
          }
      }

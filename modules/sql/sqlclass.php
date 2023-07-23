@@ -17,7 +17,7 @@ class sqlclass {
         self::$connection = null;
     }
 
-    // Почему мой код не работает ,а тот что прислал мне Иван сработал сразу ? 
+   // Почему мой код не работает ,а тот что прислал мне Иван сработал сразу ? 
    // function GetAllUsers(){ 
    //     try{
    //         $users = self::$connection->query("SELECT id , name ,  login FROM users", \PDO::FETCH_ASSOC);
@@ -43,10 +43,8 @@ class sqlclass {
     } 
 
     /*
-     *
-     * PapersPlease - функция , которая берет из БД loginscreen/users данные пользователя и возвращает ввиде массива. 
+     * PapersPlease -  вспомогательная функция , которая берет из БД loginscreen/users данные пользователя(без пароля) и возвращает ввиде массива. 
      * Просто helper.
-     * @param - string CurrentUserID
      * @param - string CurrentUserLogin
      * @param - string CurrentUserName
      */
@@ -58,14 +56,22 @@ class sqlclass {
         return $state->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /*
+     * GetUserPassword -  вспомогательная функция , которая берет из БД loginscreen/users данные пользователя и +пароль возвращает ввиде массива. 
+     * Просто helper.
+     * @param - string CurrentUserLogin
+     * @param - string CurrentUserName
+     */
+    static function GetUserPassword(string $CurrentUserLogin , string $CurrentUserName){
+        $state = self::$connection->prepare('SELECT id , login , name , password FROM users WHERE login=:CurrentUserLogin && name=:CurrentUserName');
+        $state->bindValue(':CurrentUserLogin', $CurrentUserLogin , \PDO::PARAM_STR);
+        $state->bindValue(':CurrentUserName', $CurrentUserName , \PDO::PARAM_STR);
+        $state->execute();
+        return $state->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     function PickOneUser(string $CurrentUserLogin , string $CurrentUserName) { 
         try{ 
-           // $state = self::$connection->prepare('SELECT id , login , name FROM users WHERE id=:CurrentUserID ||
-           //     login=:CurrentUserLogin || name=:CurrentUserName ');
-           // $state->bindValue(':CurrentUserID', $CurrentUserID , \PDO::PARAM_STR);
-           // $state->bindValue(':CurrentUserLogin', $CurrentUserLogin , \PDO::PARAM_STR);
-           // $state->bindValue(':CurrentUserName', $CurrentUserName , \PDO::PARAM_STR);
-           // $state->execute();
             $user = self::PapersPlease($CurrentUserLogin , $CurrentUserName);
             $userJSON = json_encode($user, JSON_UNESCAPED_UNICODE);
             return $userJSON;
@@ -86,29 +92,41 @@ class sqlclass {
         }
     }
 
-    function UpdateUser( string $CurrentUserLogin , string $CurrentUserName , string $NewName , string $NewPassword){
-        try{
-            $state = self::$connection->prepare("UPDATE `users` SET name=:NewName, password=:NewPassword 
-                WHERE login=:CurrentUserLogin && name=:CurrentUserName");
-            $state->bindValue(':CurrentUserName', $CurrentUserName ,\PDO::PARAM_STR);
-            $state->bindValue(':CurrentUserLogin', $CurrentUserLogin ,\PDO::PARAM_STR);
-            $state->bindValue(':NewName', $NewName , \PDO::PARAM_STR);
-            $state->bindValue(':NewPassword', $NewPassword ,\PDO::PARAM_STR);
-            $state->execute();
-        } catch(PDOException $e) {
-            echo $e->getMessage(); 
-        }
+    function UpdateUser(string $CurrentUserLogin , string $CurrentUserName, string $CheckCurrentPassword, string $NewName , string $NewPassword){
+            $user = self::GetUserPassword($CurrentUserLogin, $CurrentUserName);
+            if($CheckCurrentPassword === $user['password']){ 
+                try{
+                    $state = self::$connection->prepare("UPDATE `users` SET name=:NewName, password=:NewPassword 
+                        WHERE login=:CurrentUserLogin && name=:CurrentUserName");
+                    $state->bindValue(':CurrentUserName', $CurrentUserName ,\PDO::PARAM_STR);
+                    $state->bindValue(':CurrentUserLogin', $CurrentUserLogin ,\PDO::PARAM_STR);
+                    $state->bindValue(':NewName', $NewName , \PDO::PARAM_STR);
+                    $state->bindValue(':NewPassword', $NewPassword ,\PDO::PARAM_STR);
+                    $state->execute();
+                } catch(PDOException $e) {
+                    echo $e->getMessage(); 
+                }
+            }
+            else {
+                echo 'Wrong password';
+            }
     }
 
 
-    function DeleteUser( string $CurrentUserLogin , string $CurrentUserName ){
-        try{
-            $state = self::$connection->prepare('DELETE from `users` WHERE  login=:CurrentUserLogin && name=:CurrentUserName');
-            $state->bindValue(':CurrentUserLogin', $CurrentUserLogin , \PDO::PARAM_STR);
-            $state->bindValue(':CurrentUserName', $CurrentUserName ,\PDO::PARAM_STR);
-            $state->execute();
-        }catch(PDOExceptino $e){
-            echo $e->getMessage();
+    function DeleteUser( string $CurrentUserLogin , string $CurrentUserName  , $CheckCurrentPassword){
+        $user = self::GetUserPassword($CurrentUserLogin , $CurrentUserName);
+        if ($CheckCurrentPassword === $user['password']){
+            try{
+                $state = self::$connection->prepare('DELETE from `users` WHERE  login=:CurrentUserLogin && name=:CurrentUserName');
+                $state->bindValue(':CurrentUserLogin', $CurrentUserLogin , \PDO::PARAM_STR);
+                $state->bindValue(':CurrentUserName', $CurrentUserName ,\PDO::PARAM_STR);
+                $state->execute();
+            }catch(PDOExceptino $e){
+                echo $e->getMessage();
+            }
+        }
+        else {
+            echo 'Wrong password';
         }
 
     }
