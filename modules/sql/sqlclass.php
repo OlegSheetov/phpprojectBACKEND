@@ -87,13 +87,14 @@ class sqlclass {
             $state->bindValue(':login', $login ,\PDO::PARAM_STR);
             $state->bindValue(':password', $password ,\PDO::PARAM_STR);
             $state->execute();
-        } catch (PDOException $e) { 
+        } catch (PDOException $e){ 
             echo $e->getMessage();
         }
     }
 
     function UpdateUser(string $CurrentUserLogin , string $CurrentUserName, string $CheckCurrentPassword, string $NewName , string $NewPassword){
-            $user = self::GetUserPassword($CurrentUserLogin, $CurrentUserName);
+             $UserArray = self::GetUserPassword($CurrentUserLogin, $CurrentUserName);
+             $user = $UserArray[0];
             if($CheckCurrentPassword === $user['password']){ 
                 try{
                     $state = self::$connection->prepare("UPDATE `users` SET name=:NewName, password=:NewPassword 
@@ -114,7 +115,8 @@ class sqlclass {
 
 
     function DeleteUser( string $CurrentUserLogin , string $CurrentUserName  , $CheckCurrentPassword){
-        $user = self::GetUserPassword($CurrentUserLogin , $CurrentUserName);
+             $UserArray = self::GetUserPassword($CurrentUserLogin, $CurrentUserName);
+             $user = $UserArray[0];
         if ($CheckCurrentPassword === $user['password']){
             try{
                 $state = self::$connection->prepare('DELETE from `users` WHERE  login=:CurrentUserLogin && name=:CurrentUserName');
